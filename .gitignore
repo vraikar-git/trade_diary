@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+test_data/
+db/
+logs/
+*.egg-info
+.devdbrc
+tests/
+
+# Virtual environments
+.venv
+.vscode/
+.graveyard/
+
+
+Untitled-1.ipynb
