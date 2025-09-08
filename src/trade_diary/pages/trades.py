@@ -34,33 +34,45 @@ layout =  dbc.Row([
     Output('trades-table', 'getRowsResponse'),
     Input('db-update','data'),
     Input('trades-table','getRowsRequest'),
-    Input('display_year', 'value')
+    Input('display_year', 'value'),
+    Input('show-open', 'value')
 )
-def refresh_trades_table(data, request, financial_year):
-    logging.debug(f"refresh_trades_table:Triggered with data={data}, request={request}, financial_year={financial_year}")
+def refresh_trades_table(data, request, financial_year, show_open):
+    logging.debug(f"refresh_trades_table:Triggered with data={data}, financial_year={financial_year}, show_open={show_open},request={request}")
     clear_all_fields()
+
+    if len(show_open) > 0 :
+        show_trades = 'open'
+    else :
+        show_trades = 'all'
+
     ctx = callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    if data == 100 or trigger_id == 'display_year':
-        start_idx = 0
-        end_idx = 100
-    elif request:
-        start_idx = request['startRow']
-        end_idx = request['endRow']
+    filters = {}
+    if data == 100 or trigger_id == 'display_year' or request:
+        if request and request['filterModel'] :
+            initial_date_filter = request['filterModel']['initial_entry_date']
+            
+            sdate = datetime.strptime(initial_date_filter['dateFrom'],'%Y-%m-%d %H:%M:%S').date()
+            edate = datetime.strptime(initial_date_filter['dateTo'],'%Y-%m-%d %H:%M:%S').date() if initial_date_filter['dateTo'] else None
+
+            filters['initial_entry_date'] = (initial_date_filter['type'], sdate, edate)
+
+        trades = get_all_trades_and_entries(show_trades ,financial_year=financial_year, filter_conditions=filters)
+        
+        if trades is None or trades.empty:
+            logging.error("refresh_trades_table:No trades found or error fetching trades.")
+            dummy  = [{x['field'] : None for x in display_col_def}]
+            return {'rowData': dummy, 'rowCount': 1}
+            
+        trades = add_additional_columns(trades)
+
+        return {'rowData' : trades.to_dict('records'), 'rowCount': len(trades)}
     else :
         return no_update
 
     
-    trades = get_all_trades_and_entries(start_idx, end_idx,  financial_year=financial_year)
-    if trades is None or trades.empty:
-        logging.error("refresh_trades_table:No trades found or error fetching trades.")
-        dummy  = [{x['field'] : None for x in display_col_def}]
-        return {'rowData': dummy, 'rowCount': 1}
-         
-    trades = add_additional_columns(trades)
-
-    return {'rowData' : trades.to_dict('records'), 'rowCount': len(trades)}
 
 @callback(
         Output('display_year', 'options'),
@@ -72,7 +84,7 @@ def update_display_year_options(data):
     
     fy_years = get_all_financial_years()
     if not fy_years:
-        fy_years = [extract_financial_year(datetime.today())]
+        fy_years = [extract_financial_year(date.today())]
     return [{'label': str(y), 'value': y} for y in fy_years]
 
 @callback(
@@ -82,6 +94,7 @@ def update_display_year_options(data):
 def update_trade_book_header(financial_year):
     logging.debug(f"Updating Trade Book Header for Financial Year: {financial_year}")
     return f'Trades For FY {financial_year}'
+
 
 
 @callback(
@@ -331,7 +344,7 @@ def clear_all_fields():
 
 def clear_entry_fields():
     set_props('symbol', {'value' : ''})
-    set_props('entry-date', {'value' : datetime.today()})
+    set_props('entry-date', {'value' : date.today()})
     set_props('entry-price', {'value' : 0})
     set_props('entry-quantity', {'value' : 0})
     set_props('setup', {'value' : ''})
@@ -343,13 +356,13 @@ def clear_entry_fields():
 def clear_exit_fields():
     set_props('exit-quantity', {'value' : 0})
     set_props('exit-price', {'value' : 0})
-    set_props('exit-date', {'value' : datetime.today()})
+    set_props('exit-date', {'value' : date.today()})
     set_props('exit-type', {'value' : ''})
 
 def clear_pyramid_fields():
     set_props('entry-quantity-pyramid', {'value' : 0})
     set_props('entry-price-pyramid', {'value' : 0})
-    set_props('entry-date-pyramid', {'value' : datetime.today()})
+    set_props('entry-date-pyramid', {'value' : date.today()})
     set_props('entry-type-pyramid', {'value' : ''})
     set_props('risk-percentage-pyramid', {'value' : 0})
 
@@ -360,7 +373,7 @@ def clear_trade_details():
 def refresh_fy_dropdown():
      fy_years = get_all_financial_years()
      if not fy_years:
-        fy_years = [extract_financial_year(datetime.today())]
+        fy_years = [extract_financial_year(date.today())]
         options = [{'label': str(y), 'value': y} for y in fy_years]
         set_props('display_year', {'options' : options})
         set_props('display_year', {'value' : fy_years[0]})

@@ -37,16 +37,7 @@ dropbox_path = config.DROPBOX_PATH
 db = str(config.DB_PATH) + '/' + config.DB_NAME
 db_url = f"sqlite:///{db}"
 
-if config.LAST_BACKUP is None :
-    current_backup_date = backup_database(db, dropbox_path)
-    if current_backup_date:
-        config.LAST_BACKUP = current_backup_date
-        config.update_last_backup(current_backup_date)
-        logging.info(f"Backup completed on {config.LAST_BACKUP}")
-    else:
-        logging.error("Backup failed. LAST_BACKUP remains unset.")
-elif (today - config.LAST_BACKUP).days > config.BACKUP_INTERVAL:
-    logging.info("Backup interval exceeded, creating new backup.")
+if config.LAST_BACKUP is None or (today - config.LAST_BACKUP).days > config.BACKUP_INTERVAL:
     current_backup_date = backup_database(db, dropbox_path)
     if current_backup_date:
         config.LAST_BACKUP = current_backup_date

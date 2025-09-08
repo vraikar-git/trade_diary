@@ -89,8 +89,13 @@ def add_additional_columns(trades):
 
     trades.index = trades['symbol']
     trades['avg_entry_price'] = (trades['total_buy_amount'] / trades['total_quantity']).round(2)
-    trades['days_held'] = (datetime.now() - pd.to_datetime(trades['initial_entry_date'])).dt.days
+    trades['days_held'] = np.where(trades['total_open_position'] > 0,
+                                   (datetime.now() - pd.to_datetime(trades['initial_entry_date'])).dt.days,
+                                   (pd.to_datetime(trades['last_exit_date']) - pd.to_datetime(trades['initial_entry_date'])).dt.days
+                                   )
     trades['status'] = np.where(trades['total_open_position'] > 0, 'Open', 'Closed')
+
+    # trades['initial_entry_date'] = pd.to_datetime(trades['initial_entry_date']).dt.strftime('%Y-%m-%d')
 
     # to fetch current price from yahoo finance
     # current_close = fetch_current_prices(trades['symbol']).rename('current_close')

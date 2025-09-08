@@ -58,7 +58,7 @@ def get_display_data(financial_year):
     qtr_vals = ['Q4', 'Q1', 'Q2', 'Q3']
     trades['qtr'] = np.select(conditions, qtr_vals, 'N/A')
     trades['qtr'] = trades['initial_entry_date'].dt.year.astype(str) + '-' + trades['qtr']
-    trades['setup'] = trades['setup'].fillna('N/A').str.title()
+    trades['setup'] = trades['setup'].fillna('N/A').str.upper()
 
     trades = reduce(lambda left, right: pd.merge(left, right, on='trade_id', how='inner'), [trades, entries_agg, exits_agg])
     trades['no_of_days'] = (trades['exit_date'] - trades['initial_entry_date']).dt.days.fillna(0)
@@ -287,12 +287,12 @@ def update_summary_header(input_value, show_trades):
     else:
         empty_df = 'No Data'
         header = f'No Data'
-        return header, empty_df, empty_df, empty_df, empty_df, drop_down_options
+        return header, empty_df, empty_df, empty_df, empty_df, empty_df, drop_down_options
 
     if display_dfs is None:
         empty_df = 'No Data'
         header = f'No Closed Trades for Fy - {input_value}'
-        return header, empty_df, empty_df, empty_df, empty_df, drop_down_options
+        return header, empty_df, empty_df, empty_df, empty_df, empty_df, drop_down_options
 
     summary_tab_yearly = dbc.Table.from_dataframe(
         display_dfs['FY'],
@@ -330,6 +330,7 @@ def update_summary_header(input_value, show_trades):
         style={'textAlign': 'center'}
     )
     centre_table_contents(summary_tab_setup)
+    
 
     summary_trades = dbc.Table.from_dataframe(
         display_dfs['trades'],

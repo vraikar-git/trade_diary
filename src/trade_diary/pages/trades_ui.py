@@ -3,29 +3,49 @@ import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 
 
-from datetime import  datetime
+from datetime import  date
 from src.trade_diary.db_interface import get_all_financial_years
 from src.trade_diary.utility_functions import  extract_financial_year
 
 
 db_update_store = dcc.Store(id='db-update', data=100)
 
+
 display_col_def = [
     {'field': 'symbol', 'headerName': 'Symbol'},
-    {'field': 'initial_entry_date', 'headerName': 'Trade Date'},
+    {'field': 'initial_entry_date', 'headerName': 'Trade Date', 
+     "cellDataType":"dateString", 
+     "filter": "agDateColumnFilter", 
+     "filterParams": {
+         "buttons":['apply','cancel','clear'],
+         "closeOnApply": True,
+         "filterOptions" : ['lessThan', 'greaterThan', 'inRange','equals'],
+         "maxNumConditions":1,
+         "defaultOption":"greaterThan"
+         }
+     },
     {'field': 'avg_entry_price', 'headerName': 'Avg Entry Price'},
     {'field': 'total_quantity', 'headerName': 'Quantity'},
     {'field': 'total_open_position', 'headerName': 'Open Position'},
     {'field': 'total_risk_percentage', 'headerName': 'Total Risk %'},
-    {'field': 'status', 'headerName': 'Status'},
+    {'field': 'status', 'headerName': 'Status',
+      'cellStyle': {
+          'styleConditions': [
+            {"condition": "params.value === 'Open'", "style": {"color": "#3437e2", "textAlign": "center", "fontWeight": "bold"}},
+            {"condition": "params.value === 'Closed'", "style": {"color": "#e72c2c", "textAlign": "center", "fontWeight": "bold"}}
+            ]
+                    }
+                    
+    },
     {'field': 'setup', 'headerName': 'Setup'},
     {'field': 'num_entries', 'headerName': 'Number of Entries', 'hide': True},
     {'field': 'num_exits', 'headerName': 'Number of Exits', 'hide': True},
     {'field': 'total_charges', 'headerName': 'Total Charges', 'hide': True},
-    {'field': 'total_buy_amount', 'headerName': 'Investment', 'hide': True}
+    {'field': 'total_buy_amount', 'headerName': 'Investment', 'hide': True},
+    {'field': 'last_exit_date', 'headerName': 'Last Exit Date', 'hide': True},
     ]
 
-defaultColDef = {"flex" : 1, "headerClass": 'center-aligned-header'}
+defaultColDef = {"flex" : 1, "headerClass": 'center-aligned-header', "sortable": False }
 
 fy_years = get_all_financial_years()
 if not fy_years:
@@ -41,7 +61,20 @@ side_bar_buttons = dbc.ButtonGroup(
         html.Hr(),
         dcc.Dropdown(id='display_year',
                       value=fy_years[0], options=[{'label': str(y), 'value': y} for y in fy_years], 
-                      clearable=False)
+                      clearable=False),
+        html.Hr(),
+        dcc.Checklist(
+            [ 
+                {
+                "label" : html.Span("Show Only Open", style={"font-size": '1rem', "padding-left": 8}),
+                "value": "open",
+                },
+            ],
+            value = ['open'],
+            id='show-open',
+            labelStyle={"display": "flex", "align-items": "left"},
+        )
+        
     ],
     className="d-grid gap-2",
     vertical=True
@@ -116,8 +149,9 @@ entry_row = dbc.Row(
     dbc.Col([
         dbc.Label('Entry Date'),
         dcc.DatePickerSingle(
-            date=datetime.today(),
+            date=date.today(),
             id='entry-date',
+            display_format = 'YYYY-MM-DD',
             style = {'border-radius': '0.375rem'}
             
         )]
@@ -183,8 +217,9 @@ exit_row = dbc.Row(
     dbc.Col([
         dbc.Label('Exit Date'),
         dcc.DatePickerSingle(
-            date=datetime.today(),
+            date=date.today(),
             id='exit-date',
+            display_format = 'YYYY-MM-DD',
             style = {'border-radius': '0.375rem'}
             
         )]
@@ -261,8 +296,9 @@ pyramid_row = dbc.Row(
     dbc.Col([
         dbc.Label('Entry Date'),
         dcc.DatePickerSingle(
-            date=datetime.today(),
+            date=date.today(),
             id='entry-date-pyramid',
+            display_format = 'YYYY-MM-DD',
             style = {'border-radius': '0.375rem'}
             
         )]
@@ -315,10 +351,10 @@ trades_table = dag.AgGrid(
         'rowSelection': 'single',
         'rowBuffer' : 0,
         "animateRows": False,
-        "cacheBlockSize": 100,
-        "infiniteInitialRowCount": 10,
-        "pagination": False,
-        "paginationPageSize": 10,
+        # "cacheBlockSize": 12,
+        "infiniteInitialRowCount": 1,
+        # "pagination": True,
+        # "paginationAutoPageSize": True,
     },
 )
 

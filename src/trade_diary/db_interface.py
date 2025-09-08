@@ -3,7 +3,7 @@ import re
 from sqlalchemy import create_engine, Column, Integer, String, Date, Numeric, ForeignKey, Boolean, select, CHAR 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, date
 import numpy as np
 import pandas as pd
 
@@ -228,10 +228,10 @@ def insert_exit(trade_id, exit_price, quantity, exit_date, exit_type):
 
 
 
-def get_all_trades_and_entries( start_idx, end_idx, show_trades = 'all', financial_year=None):   
-    logging.debug(f"Get All Trades and Entries - Start Index: {start_idx}, End Index: {end_idx}, Show Only Open: {show_trades}, Financial Year: {financial_year}")
+def get_all_trades_and_entries(show_trades = 'all', financial_year=None, filter_conditions=None):   
+    logging.debug(f"Get All Trades and Entries - Show Only Open: {show_trades}, Financial Year: {financial_year}")
     if financial_year is None:
-        financial_year = extract_financial_year(datetime.today())
+        financial_year = extract_financial_year(date.today())
     engine = get_engine()
     try:
         exits_subq = (
@@ -240,6 +240,7 @@ def get_all_trades_and_entries( start_idx, end_idx, show_trades = 'all', financi
             func.sum(Exits.quantity).label("total_exit_quantity"),
             func.count(Exits.exit_id).label("num_exits"),
             func.sum(Exits.exit_price * Exits.quantity).label("total_sell_amount"),
+            func.max(Exits.exit_date).label("last_exit_date")
             )
             .group_by(Exits.trade_id)
             .subquery()
@@ -269,7 +270,8 @@ def get_all_trades_and_entries( start_idx, end_idx, show_trades = 'all', financi
             entries_subq.c.total_risk_percentage,
             func.coalesce(entries_subq.c.total_charges, 0).label("total_charges"),
             func.coalesce(exits_subq.c.num_exits, 0).label("num_exits"),
-            func.coalesce(exits_subq.c.total_sell_amount, 0).label("total_sell_amount")
+            func.coalesce(exits_subq.c.total_sell_amount, 0).label("total_sell_amount"),
+            func.coalesce(exits_subq.c.last_exit_date, None).label("last_exit_date")
             )
             .outerjoin(entries_subq, Trade.trade_id == entries_subq.c.trade_id)
             .outerjoin(exits_subq, Trade.trade_id == exits_subq.c.trade_id)
@@ -283,11 +285,21 @@ def get_all_trades_and_entries( start_idx, end_idx, show_trades = 'all', financi
         elif show_trades == 'closed':
             stmt = stmt.where(Trade.trade_closed == 'Y')
 
-        if start_idx :
-            stmt = stmt.limit(end_idx - start_idx).offset(start_idx)
-
+        if filter_conditions :
+            for filter_col, condition in filter_conditions.items():
+                if filter_col == 'initial_entry_date':
+                    if condition[0] == 'inRange':
+                        stmt = stmt.where(getattr(Trade, filter_col).between(condition[1], condition[2]))
+                    elif condition[0] == 'equals':
+                        stmt = stmt.where(getattr(Trade, filter_col) == condition[1])
+                    elif condition[0] == 'lessThan':
+                        stmt = stmt.where(getattr(Trade, filter_col) < condition[1])
+                    elif condition[0] == 'greaterThan':
+                        stmt = stmt.where(getattr(Trade, filter_col) > condition[1])
+                
 
         trades = pd.read_sql(stmt, engine)
+        print("Trades DataFrame:", len(trades))
 
         if trades.empty:
             logging.info("No trades found for the given criteria.")
