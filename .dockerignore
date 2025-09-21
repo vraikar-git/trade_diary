@@ -1,0 +1,13 @@
+.pytest_cache/
+.venv/
+.vscode/
+__pycache__/
+tests/
+Untitled-1.ipynb
+.ipynb_checkpoints/
+db/
+logs/
+*.pyc
+.git/
+.gitignore
+.devdbrc

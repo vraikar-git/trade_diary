@@ -6,7 +6,4 @@ db_name = "trading_journal.db"
 path = "logs"
 file_name = "trading_journal.log"
 
-[dropbox_backup]
-dropbox_path = "/Trading Data/trading_db_backups"
-backup_interval = 7
-last_backup = 2025-09-06
+

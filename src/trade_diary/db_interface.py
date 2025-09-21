@@ -299,7 +299,6 @@ def get_all_trades_and_entries(show_trades = 'all', financial_year=None, filter_
                 
 
         trades = pd.read_sql(stmt, engine)
-        print("Trades DataFrame:", len(trades))
 
         if trades.empty:
             logging.info("No trades found for the given criteria.")

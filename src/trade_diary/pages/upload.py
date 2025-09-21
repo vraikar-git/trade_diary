@@ -80,6 +80,7 @@ def get_mappings(df_columns):
         ('setup' , ['setup','strategy']),
         ('entry_date' , ['buy date','purchase date','entry date']),
         ('entry_price' , ['entry price','buy price']),
+        ('entry_type' , ['entry type','buy type', 'entry']),
         ('quantity' , ['quantity','qty','no of shares','entry quantity','entry qty']),
         ('risk_percentage' , [ 'risk percentage', 'risk','risk %']),
         ('stop_loss' , [ 'stop loss', 'sl']),
@@ -131,6 +132,7 @@ def upload_file(contents, file_name, date_format):
 
     if not_matched_fields:
         return f"Unmatched fields: {', '.join(not_matched_fields)}"
+    logging.info(f"Fields to Column Mapping: {fields_to_col_mapping}")
 
     req_cols = [x[0] for x in fields_to_col_mapping]
     df = df.rename(columns={d[1]:d[0] for d in fields_to_col_mapping})[req_cols]
@@ -138,9 +140,14 @@ def upload_file(contents, file_name, date_format):
     trades_fields = ['symbol','setup']
     entry_fields = ['entry_date','entry_price','quantity','risk_percentage','stop_loss'] 
     exit_fields = ['exit_date','exit_price','exit_quantity'] 
+    oth_fields = ['entry_type']
 
-    if df[trades_fields + entry_fields].isna().sum().sum() > 0 :
-        return "DataFrame contains NaN values"
+    nan_error = ''
+    for col in trades_fields + entry_fields :
+        if df[col].isna().sum() > 0 :
+            nan_error += f"Column {col} contains NaN values\n"
+    if nan_error :
+        return nan_error
 
     for col in df.filter(like = 'date', axis = 1):
         try :
@@ -148,18 +155,26 @@ def upload_file(contents, file_name, date_format):
         except Exception as e:
             logging.error(f"Error converting date columns {col} : {e}")
             return f"Error converting date columns {col} : {e}"
+        
+    for col in df.filter(like = 'price|quantity', axis = 1):
+        try :
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        except Exception as e:
+            logging.error(f"Error converting price columns {col} : {e}")
+            return f"Error converting price columns {col} : {e}"
 
 
     inserted_trades, not_inserted_trades = [], []
     # print(df)
 
-    df_agg_trades = df[trades_fields + entry_fields].groupby(['symbol' , 'entry_date']).agg(
+    df_agg_trades = df[trades_fields + entry_fields + oth_fields].groupby(['symbol' , 'entry_date']).agg(
         {
             'entry_price': 'max',
             'quantity': 'sum',
             'risk_percentage': lambda x: x.max()* 100,
             'stop_loss': 'max',
-            'setup': 'first'
+            'setup': 'first',
+            'entry_type': 'first',
         }
     ).reset_index()
 
@@ -176,7 +191,8 @@ def upload_file(contents, file_name, date_format):
                 entry_price = float(row['entry_price']),
                 quantity = int(row['quantity']),
                 risk_percentage = float(row['risk_percentage']),
-                stop_loss = float(row['stop_loss'])
+                stop_loss = float(row['stop_loss']),
+                entry_type = row.get('entry_type', None)
             )
             inserted_trades.append((trade_id, index, row['symbol'], row['entry_date']))
             logging.info(f"Inserted trade: {trade_id} {index} {row['symbol']} {row['entry_date']}")

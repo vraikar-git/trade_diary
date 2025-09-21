@@ -112,12 +112,17 @@ def get_display_data(financial_year):
                     "Max R" : ('net_R', 'max'),
                     "Min R" : ('net_R', 'min'),
                     "Avg Win Days" : ('no_of_days_win', 'mean'),
-                    "Avg Loss Days" : ('no_of_days_loss', 'mean')}
+                    "Avg Loss Days" : ('no_of_days_loss', 'mean'),
+                    }
                     ).reset_index().sort_values(by='sdate').assign(
                         RR = lambda df : (df['Win Avg'] / df['Loss Avg']),
                         AWLR  = lambda df : ((df['Win %'] * df['Win Avg']) / ((100 - df['Win %']) * df['Loss Avg'])))
         for col in display_df.select_dtypes(include=[float]).columns:
             display_df[col] = display_df[col].round(2)
+
+        display_df['Win %'] = np.ceil(display_df['Win %']).fillna(0).astype('int')
+        display_df['Avg Win Days'] = np.ceil(display_df['Avg Win Days']).fillna(0).astype('int')
+        display_df['Avg Loss Days'] = np.ceil(display_df['Avg Loss Days']).fillna(0).astype('int')
         display_dfs[name] = display_df.drop('sdate', axis=1).rename(columns = {'initial_entry_date' : name})
 
     display_dfs['trades'] = trades_display

@@ -1,0 +1,10 @@
+
+services:
+  trade-diary:
+    build: .
+    container_name: trade-diary
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./db:/app/db
+    restart: unless-stopped

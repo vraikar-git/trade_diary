@@ -11,6 +11,7 @@ db/
 logs/
 *.egg-info
 .devdbrc
+.devcontainer/
 tests/
 
 # Virtual environments

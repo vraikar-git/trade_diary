@@ -1,9 +1,21 @@
+## This script backs up a local SQLite database to Dropbox.
+## It reads Dropbox API credentials from environment variables using python-dotenv.
+## This scripts can be run as a standalone script, provided the required libraries are installed.
+
+import sys
+import argparse
 import logging
 import dotenv
 from datetime import date
 import dropbox
 from dropbox.files import WriteMode
 from dropbox.exceptions import ApiError, AuthError
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(module)s:%(lineno)d] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 def backup_database(db_path, dropbox_path):
     logging.info("Starting database backup to Dropbox...")
@@ -53,6 +65,11 @@ def backup_database(db_path, dropbox_path):
 
 
 if __name__ == "__main__":
-    db_path = "/home/vijay/vijay/projects/trade_diary/src/trade_diary/db/trading_journal.db"
-    dropbox_path = "/Trading Data/trading_db_backups"
+    parser = argparse.ArgumentParser(description="Backup the trading journal database to Dropbox.")
+    parser.add_argument("--db-path", type=str, required=True, help="Path to the local database file.")
+    parser.add_argument("--dropbox-path", type=str, required=True, help="Path in Dropbox to store the backup.")
+    args = parser.parse_args()
+    db_path = args.db_path
+    dropbox_path = args.dropbox_path
+    print(f"Backing up database from {db_path} to Dropbox folder {dropbox_path}")
     backup_database(db_path, dropbox_path)

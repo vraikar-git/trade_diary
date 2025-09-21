@@ -49,7 +49,7 @@ defaultColDef = {"flex" : 1, "headerClass": 'center-aligned-header', "sortable":
 
 fy_years = get_all_financial_years()
 if not fy_years:
-    fy_years = [extract_financial_year(datetime.today())]
+    fy_years = [extract_financial_year(date.today())]
 
 side_bar_buttons = dbc.ButtonGroup(
     [
