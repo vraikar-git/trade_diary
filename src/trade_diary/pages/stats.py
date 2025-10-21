@@ -77,6 +77,7 @@ def get_display_data(financial_year):
         trades["initial_entry_date"], format="%Y-%m-%d"
     )
     trades["i_entry_date"] = trades["initial_entry_date"].dt.date
+    trades['month_year'] = trades['initial_entry_date'].dt.strftime("%B-%Y")
     trade_month = trades["initial_entry_date"].dt.month
     conditions = [
         (trade_month >= 1) & (trade_month <= 3),
@@ -146,10 +147,9 @@ def get_display_data(financial_year):
         .sort_values(by="i_entry_date")
         .rename(columns=renamed_cols)
     )
-
     groupers = {
-        "Month-Year": trades["initial_entry_date"].dt.strftime("%B-%Y"),
-        "Quarter": trades["qtr"].rename("initial_entry_date"),
+        "Month-Year": 'month_year',
+        "Quarter": 'qtr',
         "FY": "financial_year",
         "Set-Up": "setup",
     }
@@ -167,25 +167,24 @@ def get_display_data(financial_year):
                     "Net R": ("net_R", "sum"),
                     "Win %": ("win", lambda x: x.mean() * 100),
                     "Win Avg": ("net_pl_percentage", lambda x: x[x > 0].mean()),
-                    "Loss Avg": ("net_pl_percentage", lambda x: x[x <= 0].mean()),
+                    "Loss Avg": ("net_pl_percentage", lambda x: (x[x <= 0].mean()) * -1 ),
                     "Max Win": ("net_pl_percentage", lambda x: x[x > 0].max()),
-                    "Max Loss": ("net_pl_percentage", lambda x: x[x <= 0].min()),
+                    "Max Loss": ("net_pl_percentage", lambda x: (x[x <= 0].min()) * -1),
                     "Max R": ("net_R", "max"),
                     "Min R": ("net_R", "min"),
                     "Avg Win Days": ("no_of_days_win", "mean"),
                     "Avg Loss Days": ("no_of_days_loss", "mean"),
                 }
             )
-            .reset_index()
+            # .reset_index()
             .sort_values(by="sdate")
-            .assign(
-                RR=lambda df: (df["Win Avg"] / df["Loss Avg"]),
-                AWLR=lambda df: (
-                    (df["Win %"] * df["Win Avg"])
-                    / ((100 - df["Win %"]) * df["Loss Avg"])
-                ),
-            )
+
         )
+
+        display_df['RR'] = np.where(display_df["Loss Avg"] == 0, 0, (display_df["Win Avg"] / display_df["Loss Avg"]))
+        display_df['AWLR'] = np.where(display_df["Loss Avg"] == 0, 0, 
+                                     ((display_df["Win %"] * display_df["Win Avg"])
+                                      / ((100 - display_df["Win %"]) * display_df["Loss Avg"])))
         for col in display_df.select_dtypes(include=[float]).columns:
             display_df[col] = display_df[col].round(2)
 
@@ -196,9 +195,17 @@ def get_display_data(financial_year):
         display_df["Avg Loss Days"] = (
             np.ceil(display_df["Avg Loss Days"]).fillna(0).astype("int")
         )
-        display_dfs[name] = display_df.drop("sdate", axis=1).rename(
-            columns={"initial_entry_date": name}
-        )
+
+        column_order = [ 'Total Trades', 'Gross R', 'Net R','Wins', 'Losses',  'Win %',
+                    'Win Avg', 'Loss Avg',  'RR', 'AWLR', 'Max Win', 'Max Loss', 'Max R', 'Min R',
+                        'Avg Win Days', 'Avg Loss Days']
+
+        display_dfs[name] = (display_df
+                             .drop("sdate", axis=1)
+                             .reindex(columns=column_order)
+                             .reset_index()
+                             .rename(columns={grouper: name})
+                             )
 
     display_dfs["trades"] = trades_display
     return display_dfs
@@ -422,6 +429,7 @@ def update_summary_header(input_value, show_trades):
             drop_down_options,
         )
 
+    
     summary_tab_yearly = dbc.Table.from_dataframe(
         display_dfs["FY"],
         striped=True,
