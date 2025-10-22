@@ -36,20 +36,4 @@ logging.debug("Starting Trade Diary Application")
 db = str(config.DB_PATH) + "/" + config.DB_NAME
 db_url = f"sqlite:///{db}"
 
-
-# from src.trade_diary.backup import backup_database
-# today = date.today()
-# dropbox_path = config.DROPBOX_PATH
-# if config.LAST_BACKUP is None or (today - config.LAST_BACKUP).days > config.BACKUP_INTERVAL:
-#     current_backup_date = backup_database(db, dropbox_path)
-#     if current_backup_date:
-#         config.LAST_BACKUP = current_backup_date
-#         config.update_last_backup(current_backup_date)
-#         logging.info(f"Backup completed on {config.LAST_BACKUP}")
-#     else:
-#         logging.error("Backup failed. LAST_BACKUP remains unset.")
-# else:
-#     logging.info(f"No backup needed. Last backup was on {config.LAST_BACKUP}")
-
-
 init_db(db_url)

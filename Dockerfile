@@ -6,14 +6,14 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv\
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+    uv sync --locked --no-dev --no-install-project
 
 COPY . /app
 
 EXPOSE 8050
 
 RUN --mount=type=cache,target=/root/.cache.uv\
-    uv sync  --locked
+    uv sync  --locked --no-dev
 
 CMD ["uv", "run", "run.py"]
 
